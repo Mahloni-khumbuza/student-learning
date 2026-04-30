@@ -1,0 +1,106 @@
+<div class="container">
+  <a routerLink="/courses" class="back-link">← Back to Courses</a>
+
+  <div *ngIf="loading" class="loading">Loading…</div>
+  <div *ngIf="error" class="alert-error">{{ error }}</div>
+
+  <ng-container *ngIf="course && !loading">
+
+    <!-- Course Info -->
+    <div class="card">
+      <h2>{{ course.title }}</h2>
+      <p style="margin-top: 0.5rem;">
+        <span class="badge badge-purple">{{ course.code }}</span>
+      </p>
+    </div>
+
+    <!-- Assignments — One-to-Many relationship -->
+    <div class="card">
+      <div class="section-header">
+        <h3>Assignments <span class="rel-badge">One-to-Many</span></h3>
+        <button class="btn btn-primary btn-sm" (click)="openAddAssignment()">+ Add Assignment</button>
+      </div>
+
+      <div *ngIf="showAssignmentForm" class="form-card" style="margin-bottom: 1rem;">
+        <h4>{{ editingAssignment ? 'Edit Assignment' : 'New Assignment' }}</h4>
+        <form (ngSubmit)="saveAssignment()" #af="ngForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Title</label>
+              <input required name="title" [(ngModel)]="assignmentForm.title" placeholder="Assignment title" />
+            </div>
+            <div class="form-group">
+              <label>Due Date</label>
+              <input type="date" name="dueDate" [(ngModel)]="assignmentForm.dueDate" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="assignmentSubmitting || af.invalid">
+              {{ assignmentSubmitting ? 'Saving…' : (editingAssignment ? 'Save Changes' : 'Add Assignment') }}
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="cancelAssignment()">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <div *ngIf="(course.assignments?.length ?? 0) === 0 && !showAssignmentForm" class="empty-state">
+        No assignments yet. Click "+ Add Assignment".
+      </div>
+
+      <table *ngIf="(course.assignments?.length ?? 0) > 0">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Due Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of course.assignments">
+            <td>{{ a.title }}</td>
+            <td class="text-muted">{{ a.dueDate ? (a.dueDate | date:'mediumDate') : '—' }}</td>
+            <td>
+              <div class="actions">
+                <button class="btn btn-secondary btn-sm" (click)="openEditAssignment(a)">Edit</button>
+                <button class="btn btn-danger btn-sm" (click)="deleteAssignment(a)">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Enrolled Students — Many-to-Many relationship -->
+    <div class="card">
+      <div class="section-header">
+        <h3>Enrolled Students <span class="rel-badge">Many-to-Many</span></h3>
+        <span class="badge badge-green">{{ course.students?.length ?? 0 }} enrolled</span>
+      </div>
+
+      <div *ngIf="(course.students?.length ?? 0) === 0" class="empty-state">
+        No students enrolled. Use the <a routerLink="/enrollments" class="table-link">Enrollments</a> page to add students.
+      </div>
+
+      <table *ngIf="(course.students?.length ?? 0) > 0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Profile</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of course.students">
+            <td><a [routerLink]="['/students', s.id]" class="table-link">{{ s.name }}</a></td>
+            <td class="text-muted">{{ s.email }}</td>
+            <td>
+              <span *ngIf="s.profile" class="badge badge-green">Has Profile</span>
+              <span *ngIf="!s.profile" class="badge badge-gray">No Profile</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </ng-container>
+</div>

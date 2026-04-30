@@ -1,0 +1,116 @@
+<div class="container">
+  <a routerLink="/students" class="back-link">← Back to Students</a>
+
+  <div *ngIf="loading" class="loading">Loading…</div>
+  <div *ngIf="error" class="alert-error">{{ error }}</div>
+
+  <ng-container *ngIf="student && !loading">
+
+    <!-- Student Info -->
+    <div class="card">
+      <h2>{{ student.name }}</h2>
+      <p class="text-muted" style="margin-top: 0.25rem;">{{ student.email }}</p>
+    </div>
+
+    <!-- Profile — One-to-One relationship -->
+    <div class="card">
+      <div class="section-header">
+        <h3>Profile <span class="rel-badge">One-to-One</span></h3>
+        <div class="actions">
+          <button class="btn btn-secondary btn-sm" (click)="openProfileForm()">
+            {{ student.profile ? 'Edit Profile' : 'Add Profile' }}
+          </button>
+          <button *ngIf="student.profile && !showProfileForm" class="btn btn-danger btn-sm" (click)="deleteProfile()">
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="!student.profile && !showProfileForm" class="empty-state">
+        No profile yet. Click "Add Profile" to create one.
+      </div>
+
+      <div *ngIf="student.profile && !showProfileForm" class="profile-display">
+        <img *ngIf="student.profile.avatarUrl" [src]="student.profile.avatarUrl" class="avatar" alt="avatar"
+             (error)="$any($event.target).style.display='none'" />
+        <div *ngIf="!student.profile.avatarUrl" class="avatar-placeholder">
+          {{ student.name[0].toUpperCase() }}
+        </div>
+        <div>
+          <p><strong>Bio:</strong> {{ student.profile.bio || '—' }}</p>
+          <p *ngIf="student.profile.avatarUrl" style="word-break: break-all;">
+            <strong>Avatar URL:</strong> {{ student.profile.avatarUrl }}
+          </p>
+        </div>
+      </div>
+
+      <form *ngIf="showProfileForm" (ngSubmit)="saveProfile()" #pf="ngForm">
+        <div class="form-group">
+          <label>Bio</label>
+          <textarea name="bio" [(ngModel)]="profileForm.bio" rows="3"
+                    placeholder="Tell us about the student…"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Avatar URL</label>
+          <input name="avatarUrl" [(ngModel)]="profileForm.avatarUrl"
+                 placeholder="https://example.com/avatar.jpg" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="profileSubmitting">
+            {{ profileSubmitting ? 'Saving…' : 'Save Profile' }}
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="showProfileForm = false">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Enrolled Courses — Many-to-Many relationship -->
+    <div class="card">
+      <div class="section-header">
+        <h3>Enrolled Courses <span class="rel-badge">Many-to-Many</span></h3>
+        <span class="badge badge-blue">{{ student.courses?.length ?? 0 }} enrolled</span>
+      </div>
+
+      <div *ngIf="(student.courses?.length ?? 0) === 0" class="empty-state">
+        Not enrolled in any courses.
+      </div>
+
+      <table *ngIf="(student.courses?.length ?? 0) > 0">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Code</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of student.courses">
+            <td><a [routerLink]="['/courses', c.id]" class="table-link">{{ c.title }}</a></td>
+            <td><span class="badge badge-purple">{{ c.code }}</span></td>
+            <td>
+              <button class="btn btn-danger btn-sm" (click)="unenroll(c.id, c.title)">Unenroll</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="availableCourses.length > 0" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Enroll in a Course</label>
+            <select [(ngModel)]="selectedCourseId" name="enroll-course">
+              <option [ngValue]="null">Select course…</option>
+              <option *ngFor="let c of availableCourses" [value]="c.id">
+                {{ c.title }} ({{ c.code }})
+              </option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" [disabled]="!selectedCourseId || enrolling" (click)="enroll()">
+          {{ enrolling ? 'Enrolling…' : 'Enroll' }}
+        </button>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

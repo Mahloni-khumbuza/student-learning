@@ -1,0 +1,99 @@
+<div class="container">
+  <div class="page-header">
+    <h2>Enrollments</h2>
+    <span class="badge badge-blue" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+      {{ allEnrollments.length }} total
+    </span>
+  </div>
+
+  <div *ngIf="error" class="alert-error">{{ error }}</div>
+
+  <!-- Enroll Form -->
+  <div class="card form-card">
+    <h3>Enroll a Student</h3>
+    <form (ngSubmit)="enroll()" #ef="ngForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Student</label>
+          <select required name="student" [(ngModel)]="selectedStudentId">
+            <option [ngValue]="null">Select student…</option>
+            <option *ngFor="let s of students" [value]="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Course</label>
+          <select required name="course" [(ngModel)]="selectedCourseId">
+            <option [ngValue]="null">Select course…</option>
+            <option *ngFor="let c of courses" [value]="c.id">{{ c.title }} ({{ c.code }})</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary"
+                [disabled]="submitting || !selectedStudentId || !selectedCourseId">
+          {{ submitting ? 'Enrolling…' : 'Enroll Student' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div *ngIf="loading" class="loading">Loading…</div>
+
+  <!-- All Enrollments Table -->
+  <div *ngIf="!loading" class="card">
+    <h3 style="margin-bottom: 1rem;">All Enrollments</h3>
+    <div *ngIf="allEnrollments.length === 0" class="empty-state">
+      No enrollments yet. Use the form above to enroll a student.
+    </div>
+    <table *ngIf="allEnrollments.length > 0">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Course</th>
+          <th>Code</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of allEnrollments">
+          <td><a [routerLink]="['/students', e.student.id]" class="table-link">{{ e.student.name }}</a></td>
+          <td><a [routerLink]="['/courses', e.course.id]" class="table-link">{{ e.course.title }}</a></td>
+          <td><span class="badge badge-purple">{{ e.course.code }}</span></td>
+          <td>
+            <button class="btn btn-danger btn-sm"
+                    (click)="unenroll(e.student.id, e.course.id, e.student.name, e.course.title)">
+              Remove
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- By Student Summary -->
+  <div *ngIf="!loading" class="card">
+    <h3 style="margin-bottom: 1rem;">By Student</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Enrolled Courses</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of students">
+          <td><a [routerLink]="['/students', s.id]" class="table-link">{{ s.name }}</a></td>
+          <td>
+            <span *ngIf="(s.courses?.length ?? 0) === 0" class="text-muted">None</span>
+            <div *ngIf="(s.courses?.length ?? 0) > 0" class="tag-list">
+              <a *ngFor="let c of s.courses" [routerLink]="['/courses', c.id]"
+                 class="badge badge-purple" style="text-decoration: none; cursor: pointer;">
+                {{ c.code }}
+              </a>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

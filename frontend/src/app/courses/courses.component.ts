@@ -1,0 +1,74 @@
+import { Component, OnInit } from '@angular/core';
+import { ApiService } from '../services/api.service';
+import { Course } from '../models/models';
+
+@Component({
+  selector: 'app-courses',
+  templateUrl: './courses.component.html',
+})
+export class CoursesComponent implements OnInit {
+  courses: Course[] = [];
+  loading = true;
+  error = '';
+  showForm = false;
+  editing: Course | null = null;
+  form = { title: '', code: '' };
+  submitting = false;
+
+  constructor(private api: ApiService) {}
+
+  ngOnInit(): void { this.load(); }
+
+  load(): void {
+    this.loading = true;
+    this.api.getCourses().subscribe({
+      next: (data) => { this.courses = data; this.loading = false; },
+      error: () => { this.error = 'Failed to load courses.'; this.loading = false; },
+    });
+  }
+
+  openAdd(): void {
+    this.editing = null;
+    this.form = { title: '', code: '' };
+    this.error = '';
+    this.showForm = true;
+  }
+
+  openEdit(c: Course): void {
+    this.editing = c;
+    this.form = { title: c.title, code: c.code };
+    this.error = '';
+    this.showForm = true;
+  }
+
+  cancel(): void {
+    this.showForm = false;
+    this.editing = null;
+    this.error = '';
+  }
+
+  submit(): void {
+    this.submitting = true;
+    this.error = '';
+    const req = this.editing
+      ? this.api.updateCourse(this.editing.id, this.form)
+      : this.api.createCourse(this.form);
+
+    req.subscribe({
+      next: () => { this.cancel(); this.load(); this.submitting = false; },
+      error: (err) => {
+        const msg = err.error?.message;
+        this.error = Array.isArray(msg) ? msg.join(', ') : (msg || 'An error occurred.');
+        this.submitting = false;
+      },
+    });
+  }
+
+  deleteCourse(c: Course): void {
+    if (!confirm(`Delete course "${c.title} (${c.code})"?\nThis will also delete all assignments and remove all enrollments.`)) return;
+    this.api.deleteCourse(c.id).subscribe({
+      next: () => this.load(),
+      error: () => { this.error = 'Failed to delete course.'; },
+    });
+  }
+}
