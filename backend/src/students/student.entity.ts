@@ -7,6 +7,7 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { Profile } from '../profiles/profile.entity';
 import { Course } from '../courses/course.entity';
@@ -19,17 +20,20 @@ export class Student {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  surname: string;
+
   @Column({ unique: true })
   email: string;
 
-  // One-to-One: each student has exactly one profile
+   
   @OneToOne(() => Profile, (profile) => profile.student, {
     cascade: true,
     nullable: true,
   })
   profile: Profile;
 
-  // Many-to-Many: students enroll in many courses; courses have many students
+   
   @ManyToMany(() => Course, (course) => course.students)
   @JoinTable({
     name: 'enrollments',
@@ -43,4 +47,7 @@ export class Student {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt: Date;
 }

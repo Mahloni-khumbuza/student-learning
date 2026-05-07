@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Course } from '../courses/course.entity';
 
@@ -18,7 +19,6 @@ export class Assignment {
   @Column({ type: 'date', nullable: true })
   dueDate: string;
 
-  // Many-to-One: many assignments belong to one course
   @ManyToOne(() => Course, (course) => course.assignments, {
     onDelete: 'CASCADE',
   })
@@ -26,4 +26,7 @@ export class Assignment {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

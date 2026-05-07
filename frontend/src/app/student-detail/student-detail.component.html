@@ -1,22 +1,33 @@
 <div class="container">
   <a routerLink="/students" class="back-link">← Back to Students</a>
 
-  <div *ngIf="loading" class="loading">Loading…</div>
+  <div *ngIf="loading" class="loading-spinner">Loading student…</div>
   <div *ngIf="error" class="alert-error">{{ error }}</div>
 
   <ng-container *ngIf="student && !loading">
 
     <!-- Student Info -->
     <div class="card">
-      <h2>{{ student.name }}</h2>
-      <p class="text-muted" style="margin-top: 0.25rem;">{{ student.email }}</p>
+      <div class="section-header">
+        <div>
+          <h2>{{ student.name }}{{ student.surname ? ' ' + student.surname : '' }}</h2>
+          <p class="text-muted" style="margin-top: 0.25rem;">{{ student.email }}</p>
+          <div class="meta-row" style="margin-top: 0.5rem;">
+            <span class="timestamp">Created: {{ student.createdAt | date:'medium' }}</span>
+            <span class="timestamp">Updated: {{ student.updatedAt | date:'medium' }}</span>
+          </div>
+        </div>
+        <div class="actions" *ngIf="auth.isAdmin()">
+          <a routerLink="/students" [queryParams]="{edit: student.id}" class="btn btn-secondary btn-sm">Edit</a>
+        </div>
+      </div>
     </div>
 
     <!-- Profile — One-to-One relationship -->
     <div class="card">
       <div class="section-header">
-        <h3>Profile <span class="rel-badge">One-to-One</span></h3>
-        <div class="actions">
+        <h3>Profile <span class="rel-badge">OneToOne</span></h3>
+        <div class="actions" *ngIf="auth.isAdmin()">
           <button class="btn btn-secondary btn-sm" (click)="openProfileForm()">
             {{ student.profile ? 'Edit Profile' : 'Add Profile' }}
           </button>
@@ -27,7 +38,7 @@
       </div>
 
       <div *ngIf="!student.profile && !showProfileForm" class="empty-state">
-        No profile yet. Click "Add Profile" to create one.
+        No profile yet.<span *ngIf="auth.isAdmin()"> Click "Add Profile" to create one.</span>
       </div>
 
       <div *ngIf="student.profile && !showProfileForm" class="profile-display">
@@ -38,9 +49,12 @@
         </div>
         <div>
           <p><strong>Bio:</strong> {{ student.profile.bio || '—' }}</p>
-          <p *ngIf="student.profile.avatarUrl" style="word-break: break-all;">
+          <p *ngIf="student.profile.avatarUrl" style="word-break: break-all; margin-top: 0.25rem;">
             <strong>Avatar URL:</strong> {{ student.profile.avatarUrl }}
           </p>
+          <div class="meta-row" style="margin-top: 0.5rem;" *ngIf="student.profile.createdAt">
+            <span class="timestamp">Profile created: {{ student.profile.createdAt | date:'medium' }}</span>
+          </div>
         </div>
       </div>
 
@@ -57,6 +71,7 @@
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" [disabled]="profileSubmitting">
+            <span *ngIf="profileSubmitting" class="spinner"></span>
             {{ profileSubmitting ? 'Saving…' : 'Save Profile' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="showProfileForm = false">Cancel</button>
@@ -67,7 +82,7 @@
     <!-- Enrolled Courses — Many-to-Many relationship -->
     <div class="card">
       <div class="section-header">
-        <h3>Enrolled Courses <span class="rel-badge">Many-to-Many</span></h3>
+        <h3>Enrolled Courses <span class="rel-badge">ManyToMany</span></h3>
         <span class="badge badge-blue">{{ student.courses?.length ?? 0 }} enrolled</span>
       </div>
 
@@ -80,7 +95,8 @@
           <tr>
             <th>Course</th>
             <th>Code</th>
-            <th>Actions</th>
+            <th>Assignments</th>
+            <th *ngIf="auth.isAdmin()" class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -88,13 +104,17 @@
             <td><a [routerLink]="['/courses', c.id]" class="table-link">{{ c.title }}</a></td>
             <td><span class="badge badge-purple">{{ c.code }}</span></td>
             <td>
+              <span class="badge badge-blue">{{ c.assignments?.length ?? 0 }} assignments</span>
+            </td>
+            <td *ngIf="auth.isAdmin()" class="col-actions">
               <button class="btn btn-danger btn-sm" (click)="unenroll(c.id, c.title)">Unenroll</button>
             </td>
           </tr>
         </tbody>
       </table>
 
-      <div *ngIf="availableCourses.length > 0" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+      <div *ngIf="auth.isAdmin() && availableCourses.length > 0"
+           style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
         <div class="form-row">
           <div class="form-group">
             <label>Enroll in a Course</label>
@@ -107,6 +127,7 @@
           </div>
         </div>
         <button class="btn btn-primary" [disabled]="!selectedCourseId || enrolling" (click)="enroll()">
+          <span *ngIf="enrolling" class="spinner"></span>
           {{ enrolling ? 'Enrolling…' : 'Enroll' }}
         </button>
       </div>

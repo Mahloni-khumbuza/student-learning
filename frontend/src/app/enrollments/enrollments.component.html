@@ -7,43 +7,64 @@
   </div>
 
   <div *ngIf="error" class="alert-error">{{ error }}</div>
+  <div *ngIf="successMessage" class="alert-success">{{ successMessage }}</div>
 
-  <!-- Enroll Form -->
-  <div class="card form-card">
-    <h3>Enroll a Student</h3>
+  <!-- Enroll Form (admin only) -->
+  <div *ngIf="auth.isAdmin()" class="card form-card">
+    <h3>Enroll a Student in Multiple Courses</h3>
     <form (ngSubmit)="enroll()" #ef="ngForm">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Student</label>
-          <select required name="student" [(ngModel)]="selectedStudentId">
-            <option [ngValue]="null">Select student…</option>
-            <option *ngFor="let s of students" [value]="s.id">{{ s.name }}</option>
-          </select>
+      <div class="form-group">
+        <label>Student</label>
+        <select required name="student"
+                [(ngModel)]="selectedStudentId"
+                (ngModelChange)="onStudentChange()">
+          <option [ngValue]="null">Select student…</option>
+          <option *ngFor="let s of students" [ngValue]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Courses (select one or more)</label>
+        <div *ngIf="!selectedStudentId" class="empty-state" style="padding: 1rem;">
+          Pick a student first to see available courses.
         </div>
-        <div class="form-group">
-          <label>Course</label>
-          <select required name="course" [(ngModel)]="selectedCourseId">
-            <option [ngValue]="null">Select course…</option>
-            <option *ngFor="let c of courses" [value]="c.id">{{ c.title }} ({{ c.code }})</option>
-          </select>
+        <div *ngIf="selectedStudentId && availableCourses.length === 0" class="empty-state" style="padding: 1rem;">
+          This student is already enrolled in every course.
+        </div>
+        <div *ngIf="selectedStudentId && availableCourses.length > 0" class="checkbox-grid">
+          <label *ngFor="let c of availableCourses" class="checkbox-item">
+            <input type="checkbox"
+                   [checked]="isCourseSelected(c.id)"
+                   (change)="toggleCourse(c.id)" />
+            <span>{{ c.title }} <span class="badge badge-purple">{{ c.code }}</span></span>
+          </label>
+        </div>
+        <div *ngIf="selectedCourseIds.length > 0" class="selection-count">
+          {{ selectedCourseIds.length }} course{{ selectedCourseIds.length !== 1 ? 's' : '' }} selected
         </div>
       </div>
+
       <div class="form-actions">
         <button type="submit" class="btn btn-primary"
-                [disabled]="submitting || !selectedStudentId || !selectedCourseId">
-          {{ submitting ? 'Enrolling…' : 'Enroll Student' }}
+                [disabled]="submitting || !selectedStudentId || selectedCourseIds.length === 0">
+          <span *ngIf="submitting" class="spinner"></span>
+          {{ submitting
+              ? 'Enrolling…'
+              : (selectedCourseIds.length > 1
+                  ? 'Enroll in ' + selectedCourseIds.length + ' Courses'
+                  : 'Enroll Student') }}
         </button>
       </div>
     </form>
   </div>
 
-  <div *ngIf="loading" class="loading">Loading…</div>
+  <div *ngIf="loading" class="loading-spinner">Loading enrollments…</div>
 
   <!-- All Enrollments Table -->
   <div *ngIf="!loading" class="card">
     <h3 style="margin-bottom: 1rem;">All Enrollments</h3>
     <div *ngIf="allEnrollments.length === 0" class="empty-state">
-      No enrollments yet. Use the form above to enroll a student.
+      No enrollments yet.<span *ngIf="auth.isAdmin()"> Use the form above to enroll a student.</span>
     </div>
     <table *ngIf="allEnrollments.length > 0">
       <thead>
@@ -51,7 +72,7 @@
           <th>Student</th>
           <th>Course</th>
           <th>Code</th>
-          <th>Actions</th>
+          <th *ngIf="auth.isAdmin()" class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -59,7 +80,7 @@
           <td><a [routerLink]="['/students', e.student.id]" class="table-link">{{ e.student.name }}</a></td>
           <td><a [routerLink]="['/courses', e.course.id]" class="table-link">{{ e.course.title }}</a></td>
           <td><span class="badge badge-purple">{{ e.course.code }}</span></td>
-          <td>
+          <td *ngIf="auth.isAdmin()" class="col-actions">
             <button class="btn btn-danger btn-sm"
                     (click)="unenroll(e.student.id, e.course.id, e.student.name, e.course.title)">
               Remove
@@ -78,6 +99,7 @@
         <tr>
           <th>Student</th>
           <th>Enrolled Courses</th>
+          <th>Count</th>
         </tr>
       </thead>
       <tbody>
@@ -91,6 +113,9 @@
                 {{ c.code }}
               </a>
             </div>
+          </td>
+          <td>
+            <span class="badge badge-blue">{{ s.courses?.length ?? 0 }}</span>
           </td>
         </tr>
       </tbody>

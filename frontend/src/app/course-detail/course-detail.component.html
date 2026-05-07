@@ -1,7 +1,7 @@
 <div class="container">
   <a routerLink="/courses" class="back-link">← Back to Courses</a>
 
-  <div *ngIf="loading" class="loading">Loading…</div>
+  <div *ngIf="loading" class="loading-spinner">Loading course…</div>
   <div *ngIf="error" class="alert-error">{{ error }}</div>
 
   <ng-container *ngIf="course && !loading">
@@ -9,20 +9,28 @@
     <!-- Course Info -->
     <div class="card">
       <h2>{{ course.title }}</h2>
-      <p style="margin-top: 0.5rem;">
+      <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
         <span class="badge badge-purple">{{ course.code }}</span>
-      </p>
+        <span class="badge badge-blue">{{ course.assignments?.length ?? 0 }} assignments</span>
+        <span class="badge badge-green">{{ course.students?.length ?? 0 }} students</span>
+      </div>
+      <div class="meta-row" style="margin-top: 0.75rem;">
+        <span class="timestamp">Created: {{ course.createdAt | date:'medium' }}</span>
+        <span class="timestamp">Updated: {{ course.updatedAt | date:'medium' }}</span>
+      </div>
     </div>
 
     <!-- Assignments — One-to-Many relationship -->
     <div class="card">
       <div class="section-header">
-        <h3>Assignments <span class="rel-badge">One-to-Many</span></h3>
-        <button class="btn btn-primary btn-sm" (click)="openAddAssignment()">+ Add Assignment</button>
+        <h3>Assignments <span class="rel-badge">OneToMany</span></h3>
+        <button *ngIf="auth.isAdmin()" class="btn btn-primary btn-sm" (click)="openAddAssignment()">
+          + Add Assignment
+        </button>
       </div>
 
-      <div *ngIf="showAssignmentForm" class="form-card" style="margin-bottom: 1rem;">
-        <h4>{{ editingAssignment ? 'Edit Assignment' : 'New Assignment' }}</h4>
+      <div *ngIf="showAssignmentForm" class="form-card" style="margin-bottom: 1rem; padding: 1rem; background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 0.5rem;">
+        <h4 style="margin-bottom: 0.75rem; font-size: 0.875rem;">{{ editingAssignment ? 'Edit Assignment' : 'New Assignment' }}</h4>
         <form (ngSubmit)="saveAssignment()" #af="ngForm">
           <div class="form-row">
             <div class="form-group">
@@ -36,6 +44,7 @@
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary" [disabled]="assignmentSubmitting || af.invalid">
+              <span *ngIf="assignmentSubmitting" class="spinner"></span>
               {{ assignmentSubmitting ? 'Saving…' : (editingAssignment ? 'Save Changes' : 'Add Assignment') }}
             </button>
             <button type="button" class="btn btn-secondary" (click)="cancelAssignment()">Cancel</button>
@@ -44,7 +53,7 @@
       </div>
 
       <div *ngIf="(course.assignments?.length ?? 0) === 0 && !showAssignmentForm" class="empty-state">
-        No assignments yet. Click "+ Add Assignment".
+        No assignments yet.<span *ngIf="auth.isAdmin()"> Click "+ Add Assignment".</span>
       </div>
 
       <table *ngIf="(course.assignments?.length ?? 0) > 0">
@@ -52,14 +61,16 @@
           <tr>
             <th>Title</th>
             <th>Due Date</th>
-            <th>Actions</th>
+            <th>Created</th>
+            <th *ngIf="auth.isAdmin()" class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let a of course.assignments">
             <td>{{ a.title }}</td>
             <td class="text-muted">{{ a.dueDate ? (a.dueDate | date:'mediumDate') : '—' }}</td>
-            <td>
+            <td class="timestamp">{{ a.createdAt | date:'mediumDate' }}</td>
+            <td *ngIf="auth.isAdmin()" class="col-actions">
               <div class="actions">
                 <button class="btn btn-secondary btn-sm" (click)="openEditAssignment(a)">Edit</button>
                 <button class="btn btn-danger btn-sm" (click)="deleteAssignment(a)">Delete</button>
@@ -73,7 +84,7 @@
     <!-- Enrolled Students — Many-to-Many relationship -->
     <div class="card">
       <div class="section-header">
-        <h3>Enrolled Students <span class="rel-badge">Many-to-Many</span></h3>
+        <h3>Enrolled Students <span class="rel-badge">ManyToMany</span></h3>
         <span class="badge badge-green">{{ course.students?.length ?? 0 }} enrolled</span>
       </div>
 
@@ -87,6 +98,7 @@
             <th>Name</th>
             <th>Email</th>
             <th>Profile</th>
+            <th>Enrolled Since</th>
           </tr>
         </thead>
         <tbody>
@@ -97,6 +109,7 @@
               <span *ngIf="s.profile" class="badge badge-green">Has Profile</span>
               <span *ngIf="!s.profile" class="badge badge-gray">No Profile</span>
             </td>
+            <td class="timestamp">{{ s.createdAt | date:'mediumDate' }}</td>
           </tr>
         </tbody>
       </table>

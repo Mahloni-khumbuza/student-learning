@@ -21,13 +21,13 @@ export class Course {
   @Column({ unique: true })
   code: string;
 
-  // One-to-Many: one course owns many assignments
+   
   @OneToMany(() => Assignment, (assignment) => assignment.course, {
     cascade: true,
   })
   assignments: Assignment[];
 
-  // Inverse side of the Many-to-Many with students
+   
   @ManyToMany(() => Student, (student) => student.courses)
   students: Student[];
 

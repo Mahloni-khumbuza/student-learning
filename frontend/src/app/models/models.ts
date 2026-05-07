@@ -2,16 +2,20 @@ export interface Profile {
   id: number;
   bio?: string;
   avatarUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Student {
   id: number;
   name: string;
+  surname?: string | null;
   email: string;
   profile?: Profile;
   courses?: Course[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 export interface Assignment {
@@ -20,6 +24,7 @@ export interface Assignment {
   dueDate?: string;
   course?: Course;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Course {
@@ -30,4 +35,12 @@ export interface Course {
   students?: Student[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name?: string;
+  surname?: string;
+  role: 'admin' | 'student';
 }

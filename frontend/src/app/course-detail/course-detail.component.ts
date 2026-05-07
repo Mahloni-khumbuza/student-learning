@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../services/api.service';
+import { AuthService } from '../auth/auth.service';
 import { Course, Assignment } from '../models/models';
 
 @Component({
@@ -17,7 +18,11 @@ export class CourseDetailComponent implements OnInit {
   assignmentForm = { title: '', dueDate: '' };
   assignmentSubmitting = false;
 
-  constructor(private route: ActivatedRoute, private api: ApiService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private api: ApiService,
+    public auth: AuthService,
+  ) {}
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -25,9 +30,13 @@ export class CourseDetailComponent implements OnInit {
   }
 
   loadCourse(id: number): void {
+    this.loading = true;
     this.api.getCourse(id).subscribe({
       next: (c) => { this.course = c; this.loading = false; },
-      error: () => { this.error = 'Course not found.'; this.loading = false; },
+      error: (err) => {
+        this.error = err.status === 404 ? 'Course not found.' : 'Failed to load course.';
+        this.loading = false;
+      },
     });
   }
 
@@ -62,14 +71,15 @@ export class CourseDetailComponent implements OnInit {
         this.loadCourse(this.course!.id);
       },
       error: (err) => {
-        this.error = err.error?.message || 'Failed to save assignment.';
+        const msg = err.error?.message;
+        this.error = Array.isArray(msg) ? msg.join(', ') : (msg || 'Failed to save assignment.');
         this.assignmentSubmitting = false;
       },
     });
   }
 
   deleteAssignment(a: Assignment): void {
-    if (!confirm(`Delete assignment "${a.title}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete assignment "${a.title}"?`)) return;
     this.api.deleteAssignment(a.id).subscribe({
       next: () => this.loadCourse(this.course!.id),
       error: () => { this.error = 'Failed to delete assignment.'; },

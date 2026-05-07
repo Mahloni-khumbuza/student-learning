@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../services/api.service';
+import { AuthService } from '../auth/auth.service';
 import { Student, Course } from '../models/models';
 
 @Component({
@@ -20,7 +21,11 @@ export class StudentDetailComponent implements OnInit {
   selectedCourseId: number | null = null;
   enrolling = false;
 
-  constructor(private route: ActivatedRoute, private api: ApiService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private api: ApiService,
+    public auth: AuthService,
+  ) {}
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -29,9 +34,13 @@ export class StudentDetailComponent implements OnInit {
   }
 
   loadStudent(id: number): void {
+    this.loading = true;
     this.api.getStudent(id).subscribe({
       next: (s) => { this.student = s; this.loading = false; },
-      error: () => { this.error = 'Student not found.'; this.loading = false; },
+      error: (err) => {
+        this.error = err.status === 404 ? 'Student not found.' : 'Failed to load student.';
+        this.loading = false;
+      },
     });
   }
 
@@ -57,14 +66,15 @@ export class StudentDetailComponent implements OnInit {
         this.loadStudent(this.student!.id);
       },
       error: (err) => {
-        this.error = err.error?.message || 'Failed to save profile.';
+        const msg = err.error?.message;
+        this.error = Array.isArray(msg) ? msg.join(', ') : (msg || 'Failed to save profile.');
         this.profileSubmitting = false;
       },
     });
   }
 
   deleteProfile(): void {
-    if (!this.student?.profile || !confirm('Delete this profile? This cannot be undone.')) return;
+    if (!this.student?.profile || !confirm('Delete this profile?')) return;
     this.api.deleteProfile(this.student.profile.id).subscribe({
       next: () => this.loadStudent(this.student!.id),
       error: () => { this.error = 'Failed to delete profile.'; },
@@ -76,7 +86,11 @@ export class StudentDetailComponent implements OnInit {
     this.enrolling = true;
     this.api.enrollStudent(this.student.id, this.selectedCourseId).subscribe({
       next: (s) => { this.student = s; this.enrolling = false; this.selectedCourseId = null; },
-      error: (err) => { this.error = err.error?.message || 'Failed to enroll.'; this.enrolling = false; },
+      error: (err) => {
+        const msg = err.error?.message;
+        this.error = Array.isArray(msg) ? msg.join(', ') : (msg || 'Failed to enroll.');
+        this.enrolling = false;
+      },
     });
   }
 

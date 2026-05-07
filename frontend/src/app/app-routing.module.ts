@@ -5,14 +5,17 @@ import { StudentDetailComponent } from './student-detail/student-detail.componen
 import { CoursesComponent } from './courses/courses.component';
 import { CourseDetailComponent } from './course-detail/course-detail.component';
 import { EnrollmentsComponent } from './enrollments/enrollments.component';
+import { LoginComponent } from './login/login.component';
+import { AuthGuard } from './auth/auth.guard';
 
 const routes: Routes = [
+  { path: 'login', component: LoginComponent },
   { path: '', redirectTo: '/students', pathMatch: 'full' },
-  { path: 'students', component: StudentsComponent },
-  { path: 'students/:id', component: StudentDetailComponent },
-  { path: 'courses', component: CoursesComponent },
-  { path: 'courses/:id', component: CourseDetailComponent },
-  { path: 'enrollments', component: EnrollmentsComponent },
+  { path: 'students', component: StudentsComponent, canActivate: [AuthGuard] },
+  { path: 'students/:id', component: StudentDetailComponent, canActivate: [AuthGuard] },
+  { path: 'courses', component: CoursesComponent, canActivate: [AuthGuard] },
+  { path: 'courses/:id', component: CourseDetailComponent, canActivate: [AuthGuard] },
+  { path: 'enrollments', component: EnrollmentsComponent, canActivate: [AuthGuard] },
 ];
 
 @NgModule({

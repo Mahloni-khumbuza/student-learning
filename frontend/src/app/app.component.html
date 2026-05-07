@@ -1,8 +1,16 @@
-<nav class="navbar">
+<nav class="navbar" *ngIf="auth.isLoggedIn()">
   <span class="navbar-brand">Student Learning System</span>
-  <a routerLink="/students" routerLinkActive="active">Students</a>
-  <a routerLink="/courses" routerLinkActive="active">Courses</a>
-  <a routerLink="/enrollments" routerLinkActive="active">Enrollments</a>
+  <div class="nav-links">
+    <a routerLink="/students" routerLinkActive="active">Students</a>
+    <a routerLink="/courses" routerLinkActive="active">Courses</a>
+    <a routerLink="/enrollments" routerLinkActive="active">Enrollments</a>
+  </div>
+  <div class="nav-user">
+    <span class="user-badge" [class.admin-badge]="auth.isAdmin()">
+      {{ auth.displayName() }} &middot; {{ auth.currentUser?.role }}
+    </span>
+    <button class="btn btn-sm nav-logout" (click)="logout()">Logout</button>
+  </div>
 </nav>
 
 <main>

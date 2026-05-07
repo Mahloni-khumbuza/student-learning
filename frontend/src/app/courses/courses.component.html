@@ -1,7 +1,7 @@
 <div class="container">
   <div class="page-header">
     <h2>Courses</h2>
-    <button class="btn btn-primary" (click)="openAdd()">+ Add Course</button>
+    <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="openAdd()">+ Add Course</button>
   </div>
 
   <div *ngIf="error && !showForm" class="alert-error">{{ error }}</div>
@@ -22,6 +22,7 @@
       </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary" [disabled]="submitting || f.invalid">
+          <span *ngIf="submitting" class="spinner"></span>
           {{ submitting ? 'Saving…' : (editing ? 'Save Changes' : 'Create Course') }}
         </button>
         <button type="button" class="btn btn-secondary" (click)="cancel()">Cancel</button>
@@ -29,11 +30,11 @@
     </form>
   </div>
 
-  <div *ngIf="loading" class="loading">Loading courses…</div>
+  <div *ngIf="loading" class="loading-spinner">Loading courses…</div>
 
   <div *ngIf="!loading" class="card">
     <div *ngIf="courses.length === 0" class="empty-state">
-      No courses yet. Click "+ Add Course" to get started.
+      No courses yet. <span *ngIf="auth.isAdmin()">Click "+ Add Course" to get started.</span>
     </div>
     <table *ngIf="courses.length > 0">
       <thead>
@@ -41,8 +42,9 @@
           <th>Title</th>
           <th>Code</th>
           <th>Assignments</th>
-          <th>Enrolled Students</th>
-          <th>Actions</th>
+          <th>Students</th>
+          <th>Created</th>
+          <th class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -61,11 +63,14 @@
               {{ c.students?.length ?? 0 }} student{{ (c.students?.length ?? 0) !== 1 ? 's' : '' }}
             </span>
           </td>
-          <td>
+          <td class="timestamp">{{ c.createdAt | date:'mediumDate' }}</td>
+          <td class="col-actions">
             <div class="actions">
               <a [routerLink]="['/courses', c.id]" class="btn btn-secondary btn-sm">View</a>
-              <button class="btn btn-secondary btn-sm" (click)="openEdit(c)">Edit</button>
-              <button class="btn btn-danger btn-sm" (click)="deleteCourse(c)">Delete</button>
+              <ng-container *ngIf="auth.isAdmin()">
+                <button class="btn btn-secondary btn-sm" (click)="openEdit(c)">Edit</button>
+                <button class="btn btn-danger btn-sm" (click)="deleteCourse(c)">Delete</button>
+              </ng-container>
             </div>
           </td>
         </tr>

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ApiService } from '../services/api.service';
+import { AuthService } from '../auth/auth.service';
 import { Course } from '../models/models';
 
 @Component({
@@ -15,12 +16,13 @@ export class CoursesComponent implements OnInit {
   form = { title: '', code: '' };
   submitting = false;
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, public auth: AuthService) {}
 
   ngOnInit(): void { this.load(); }
 
   load(): void {
     this.loading = true;
+    this.error = '';
     this.api.getCourses().subscribe({
       next: (data) => { this.courses = data; this.loading = false; },
       error: () => { this.error = 'Failed to load courses.'; this.loading = false; },
@@ -65,10 +67,13 @@ export class CoursesComponent implements OnInit {
   }
 
   deleteCourse(c: Course): void {
-    if (!confirm(`Delete course "${c.title} (${c.code})"?\nThis will also delete all assignments and remove all enrollments.`)) return;
+    if (!confirm(`Delete course "${c.title} (${c.code})"?\nThis will also delete all assignments.`)) return;
     this.api.deleteCourse(c.id).subscribe({
       next: () => this.load(),
-      error: () => { this.error = 'Failed to delete course.'; },
+      error: (err) => {
+        const msg = err.error?.message || 'Failed to delete course.';
+        this.error = msg;
+      },
     });
   }
 }

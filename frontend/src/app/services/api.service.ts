@@ -16,10 +16,10 @@ export class ApiService {
   getStudent(id: number): Observable<Student> {
     return this.http.get<Student>(`${BASE}/students/${id}`);
   }
-  createStudent(data: { name: string; email: string }): Observable<Student> {
+  createStudent(data: { name: string; surname?: string; email: string }): Observable<Student> {
     return this.http.post<Student>(`${BASE}/students`, data);
   }
-  updateStudent(id: number, data: Partial<{ name: string; email: string }>): Observable<Student> {
+  updateStudent(id: number, data: Partial<{ name: string; surname: string; email: string }>): Observable<Student> {
     return this.http.patch<Student>(`${BASE}/students/${id}`, data);
   }
   deleteStudent(id: number): Observable<void> {

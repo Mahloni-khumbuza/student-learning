@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ApiService } from '../services/api.service';
+import { AuthService } from '../auth/auth.service';
 import { Student } from '../models/models';
 
 @Component({
@@ -12,15 +13,16 @@ export class StudentsComponent implements OnInit {
   error = '';
   showForm = false;
   editing: Student | null = null;
-  form = { name: '', email: '' };
+  form = { name: '', surname: '', email: '' };
   submitting = false;
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, public auth: AuthService) {}
 
   ngOnInit(): void { this.load(); }
 
   load(): void {
     this.loading = true;
+    this.error = '';
     this.api.getStudents().subscribe({
       next: (data) => { this.students = data; this.loading = false; },
       error: () => { this.error = 'Failed to load students.'; this.loading = false; },
@@ -29,14 +31,14 @@ export class StudentsComponent implements OnInit {
 
   openAdd(): void {
     this.editing = null;
-    this.form = { name: '', email: '' };
+    this.form = { name: '', surname: '', email: '' };
     this.error = '';
     this.showForm = true;
   }
 
   openEdit(s: Student): void {
     this.editing = s;
-    this.form = { name: s.name, email: s.email };
+    this.form = { name: s.name, surname: s.surname || '', email: s.email };
     this.error = '';
     this.showForm = true;
   }
@@ -65,10 +67,13 @@ export class StudentsComponent implements OnInit {
   }
 
   deleteStudent(s: Student): void {
-    if (!confirm(`Delete student "${s.name}"?\nThis will also delete their profile and remove all enrollments.`)) return;
+    if (!confirm(`Soft-delete student "${s.name}"?\nThey can be restored later.`)) return;
     this.api.deleteStudent(s.id).subscribe({
       next: () => this.load(),
-      error: () => { this.error = 'Failed to delete student.'; },
+      error: (err) => {
+        const msg = err.error?.message || 'Failed to delete student.';
+        this.error = msg;
+      },
     });
   }
 }

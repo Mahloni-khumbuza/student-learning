@@ -50,12 +50,13 @@ export class StudentsService {
   }
 
   async remove(id: number): Promise<void> {
-    const student = await this.studentRepo.findOne({
-      where: { id },
-      relations: ['profile'],
-    });
+    const student = await this.studentRepo.findOne({ where: { id } });
     if (!student) throw new NotFoundException(`Student #${id} not found`);
-    await this.studentRepo.remove(student);
+    await this.studentRepo.softDelete(id);
+  }
+
+  async restore(id: number): Promise<void> {
+    await this.studentRepo.restore(id);
   }
 
   async enroll(studentId: number, courseId: number): Promise<Student> {
@@ -69,10 +70,12 @@ export class StudentsService {
     if (!course) throw new NotFoundException(`Course #${courseId} not found`);
 
     const alreadyEnrolled = student.courses?.some((c) => c.id === courseId);
-    if (!alreadyEnrolled) {
-      student.courses = [...(student.courses || []), course];
-      await this.studentRepo.save(student);
+    if (alreadyEnrolled) {
+      throw new ConflictException(`Student #${studentId} is already enrolled in Course #${courseId}`);
     }
+
+    student.courses = [...(student.courses || []), course];
+    await this.studentRepo.save(student);
     return this.findOne(studentId);
   }
 
