@@ -8,13 +8,13 @@ import { AuthService } from '../auth/auth.service';
 })
 export class LoginComponent {
   mode: 'login' | 'register' = 'login';
-  form = { email: '', password: '', role: 'student', name: '', surname: '' };
+  form = { fullName: '', email: '', username: '', password: '', role: 'STUDENT' };
   loading = false;
   error = '';
 
   constructor(private auth: AuthService, private router: Router) {}
 
-  setRole(role: 'student' | 'admin'): void {
+  setRole(role: 'STUDENT' | 'ADMIN'): void {
     this.form.role = role;
     this.error = '';
   }
@@ -25,29 +25,20 @@ export class LoginComponent {
 
     if (this.mode === 'register') {
       this.auth.register(
+        this.form.fullName,
         this.form.email,
+        this.form.username,
         this.form.password,
-        this.form.role,
-        this.form.name,
-        this.form.surname,
+        this.form.role
       ).subscribe({
-        next: () => this.router.navigate(['/students']),
+        next: () => this.router.navigate(['/courses']),
         error: (err) => this.handleError(err),
       });
       return;
     }
 
-    this.auth.login(this.form.email, this.form.password).subscribe({
-      next: () => {
-        const actualRole = this.auth.currentUser?.role;
-        if (actualRole !== this.form.role) {
-          this.auth.logout();
-          this.error = `This account is not registered as a${this.form.role === 'admin' ? 'n admin' : ' student'}.`;
-          this.loading = false;
-          return;
-        }
-        this.router.navigate(['/students']);
-      },
+    this.auth.login(this.form.username, this.form.password).subscribe({
+      next: () => this.router.navigate(['/courses']),
       error: (err) => this.handleError(err),
     });
   }

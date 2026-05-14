@@ -1,76 +1,89 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Student, Course, Assignment, Profile } from '../models/models';
+import { User, Course, Enrollment, Assignment, AuthRequest, RegisterRequest, AuthResponse } from '../models/models';
 
-const BASE = 'http://localhost:3001';
+const BASE = 'http://localhost:8080/api';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+
   constructor(private http: HttpClient) {}
 
-  // Students
-  getStudents(): Observable<Student[]> {
-    return this.http.get<Student[]>(`${BASE}/students`);
-  }
-  getStudent(id: string): Observable<Student> {
-    return this.http.get<Student>(`${BASE}/students/${id}`);
-  }
-  createStudent(data: { name: string; surname?: string; email: string }): Observable<Student> {
-    return this.http.post<Student>(`${BASE}/students`, data);
-  }
-  updateStudent(id: string, data: Partial<{ name: string; surname: string; email: string }>): Observable<Student> {
-    return this.http.patch<Student>(`${BASE}/students/${id}`, data);
-  }
-  deleteStudent(id: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${BASE}/students/${id}`);
-  }
-  enrollStudent(studentId: string, courseId: number): Observable<Student> {
-    return this.http.post<Student>(`${BASE}/students/${studentId}/enroll/${courseId}`, {});
-  }
-  unenrollStudent(studentId: string, courseId: number): Observable<Student> {
-    return this.http.delete<Student>(`${BASE}/students/${studentId}/unenroll/${courseId}`);
-  }
-  getAllEnrollments(): Observable<Student[]> {
-    return this.http.get<Student[]>(`${BASE}/students/enrollments`);
+  private getHeaders(): HttpHeaders {
+    const token = localStorage.getItem('token');
+    return new HttpHeaders({
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    });
   }
 
-  // Profiles
-  createProfile(data: { studentId: string; bio?: string; avatarUrl?: string }): Observable<Profile> {
-    return this.http.post<Profile>(`${BASE}/profiles`, data);
+  // Auth
+  login(data: AuthRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${BASE}/auth/login`, data);
   }
-  updateProfile(id: number, data: Partial<{ bio: string; avatarUrl: string }>): Observable<Profile> {
-    return this.http.patch<Profile>(`${BASE}/profiles/${id}`, data);
+
+  register(data: RegisterRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${BASE}/auth/register`, data);
   }
-  deleteProfile(id: number): Observable<void> {
-    return this.http.delete<void>(`${BASE}/profiles/${id}`);
+
+  // Users
+  getUsers(): Observable<User[]> {
+    return this.http.get<User[]>(`${BASE}/users`, { headers: this.getHeaders() });
+  }
+
+  getMyProfile(): Observable<User> {
+    return this.http.get<User>(`${BASE}/users/me`, { headers: this.getHeaders() });
   }
 
   // Courses
   getCourses(): Observable<Course[]> {
-    return this.http.get<Course[]>(`${BASE}/courses`);
+    return this.http.get<Course[]>(`${BASE}/courses`, { headers: this.getHeaders() });
   }
+
   getCourse(id: number): Observable<Course> {
-    return this.http.get<Course>(`${BASE}/courses/${id}`);
+    return this.http.get<Course>(`${BASE}/courses/${id}`, { headers: this.getHeaders() });
   }
-  createCourse(data: { title: string; code: string }): Observable<Course> {
-    return this.http.post<Course>(`${BASE}/courses`, data);
+
+  createCourse(data: { title: string; description?: string; instructor: string }): Observable<Course> {
+    return this.http.post<Course>(`${BASE}/courses`, data, { headers: this.getHeaders() });
   }
-  updateCourse(id: number, data: Partial<{ title: string; code: string }>): Observable<Course> {
-    return this.http.patch<Course>(`${BASE}/courses/${id}`, data);
+
+  updateCourse(id: number, data: { title: string; description?: string; instructor: string }): Observable<Course> {
+    return this.http.put<Course>(`${BASE}/courses/${id}`, data, { headers: this.getHeaders() });
   }
+
   deleteCourse(id: number): Observable<void> {
-    return this.http.delete<void>(`${BASE}/courses/${id}`);
+    return this.http.delete<void>(`${BASE}/courses/${id}`, { headers: this.getHeaders() });
+  }
+
+  // Enrollments
+  enroll(courseId: number): Observable<Enrollment> {
+    return this.http.post<Enrollment>(`${BASE}/enrollments`, { courseId }, { headers: this.getHeaders() });
+  }
+
+  getMyEnrollments(): Observable<Enrollment[]> {
+    return this.http.get<Enrollment[]>(`${BASE}/enrollments/my`, { headers: this.getHeaders() });
+  }
+
+  getCourseEnrollments(courseId: number): Observable<Enrollment[]> {
+    return this.http.get<Enrollment[]>(`${BASE}/enrollments/course/${courseId}`, { headers: this.getHeaders() });
   }
 
   // Assignments
+  getCourseAssignments(courseId: number): Observable<Assignment[]> {
+    return this.http.get<Assignment[]>(`${BASE}/assignments/course/${courseId}`, { headers: this.getHeaders() });
+  }
+
   createAssignment(data: { title: string; dueDate?: string; courseId: number }): Observable<Assignment> {
-    return this.http.post<Assignment>(`${BASE}/assignments`, data);
+    return this.http.post<Assignment>(`${BASE}/assignments`, data, { headers: this.getHeaders() });
   }
-  updateAssignment(id: number, data: Partial<{ title: string; dueDate: string }>): Observable<Assignment> {
-    return this.http.patch<Assignment>(`${BASE}/assignments/${id}`, data);
+
+  updateAssignment(id: number, data: { title: string; dueDate?: string }): Observable<Assignment> {
+    return this.http.put<Assignment>(`${BASE}/assignments/${id}`, data, { headers: this.getHeaders() });
   }
+
   deleteAssignment(id: number): Observable<void> {
-    return this.http.delete<void>(`${BASE}/assignments/${id}`);
+    return this.http.delete<void>(`${BASE}/assignments/${id}`, { headers: this.getHeaders() });
   }
 }

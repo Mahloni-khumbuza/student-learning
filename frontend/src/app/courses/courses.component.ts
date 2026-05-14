@@ -13,7 +13,7 @@ export class CoursesComponent implements OnInit {
   error = '';
   showForm = false;
   editing: Course | null = null;
-  form = { title: '', code: '' };
+  form = { title: '', description: '', instructor: '' };
   submitting = false;
 
   constructor(private api: ApiService, public auth: AuthService) {}
@@ -31,14 +31,14 @@ export class CoursesComponent implements OnInit {
 
   openAdd(): void {
     this.editing = null;
-    this.form = { title: '', code: '' };
+    this.form = { title: '', description: '', instructor: '' };
     this.error = '';
     this.showForm = true;
   }
 
   openEdit(c: Course): void {
     this.editing = c;
-    this.form = { title: c.title, code: c.code };
+    this.form = { title: c.title, description: c.description || '', instructor: c.instructor };
     this.error = '';
     this.showForm = true;
   }
@@ -67,12 +67,11 @@ export class CoursesComponent implements OnInit {
   }
 
   deleteCourse(c: Course): void {
-    if (!confirm(`Delete course "${c.title} (${c.code})"?\nThis will also delete all assignments.`)) return;
+    if (!confirm(`Delete course "${c.title}"?`)) return;
     this.api.deleteCourse(c.id).subscribe({
       next: () => this.load(),
       error: (err) => {
-        const msg = err.error?.message || 'Failed to delete course.';
-        this.error = msg;
+        this.error = err.error?.message || 'Failed to delete course.';
       },
     });
   }

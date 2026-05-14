@@ -1,88 +1,82 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { AuthUser } from '../models/models';
+import { AuthResponse } from '../models/models';
 
-const BASE = 'http://localhost:3001';
-const TOKEN_KEY = 'sls_token';
-
-function decodePayload(token: string): AuthUser | null {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return {
-      id: payload.sub,
-      email: payload.email,
-      name: payload.name,
-      surname: payload.surname,
-      role: payload.role,
-    };
-  } catch {
-    return null;
-  }
-}
+const BASE = 'http://localhost:8080/api';
+const TOKEN_KEY = 'token';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private userSubject = new BehaviorSubject<AuthUser | null>(this.loadUser());
-  user$ = this.userSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  private userSubject = new BehaviorSubject<{ username: string; role: string } | null>(this.loadUser());
 
-  private loadUser(): AuthUser | null {
+  constructor(private http: HttpClient, private router: Router) {}
+
+  private loadUser(): { username: string; role: string } | null {
     const token = localStorage.getItem(TOKEN_KEY);
-    return token ? decodePayload(token) : null;
+    const role = localStorage.getItem('role');
+    const username = localStorage.getItem('username');
+    if (token && role && username) {
+      return { username, role };
+    }
+    return null;
+  }
+
+  get currentUser(): { username: string; role: string } | null {
+    return this.userSubject.value;
+  }
+
+  isLoggedIn(): boolean {
+    return !!localStorage.getItem(TOKEN_KEY);
+  }
+
+  isAdmin(): boolean {
+    return this.userSubject.value?.role === 'ADMIN';
   }
 
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
 
-  isLoggedIn(): boolean {
-    return !!this.getToken();
-  }
-
-  isAdmin(): boolean {
-    return this.userSubject.value?.role === 'admin';
-  }
-
-  get currentUser(): AuthUser | null {
-    return this.userSubject.value;
-  }
-
   displayName(): string {
-    const u = this.userSubject.value;
-    if (!u) return '';
-    const full = [u.name, u.surname].filter(Boolean).join(' ').trim();
-    return full || u.email;
+    return this.userSubject.value?.username || '';
   }
 
-  login(email: string, password: string): Observable<{ accessToken: string }> {
-    return this.http.post<{ accessToken: string }>(`${BASE}/auth/login`, { email, password }).pipe(
-      tap(({ accessToken }) => this.setToken(accessToken)),
+  login(username: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${BASE}/auth/login`, { username, password }).pipe(
+      tap(res => this.setSession(res))
     );
   }
 
   register(
+    fullName: string,
     email: string,
+    username: string,
     password: string,
-    role: string,
-    name?: string,
-    surname?: string,
-  ): Observable<{ accessToken: string }> {
-    return this.http.post<{ accessToken: string }>(`${BASE}/auth/register`, {
-      email, password, role, name, surname,
+    role: string = 'STUDENT'
+  ): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${BASE}/auth/register`, {
+      fullName, email, username, password,
+      role: role.toUpperCase()
     }).pipe(
-      tap(({ accessToken }) => this.setToken(accessToken)),
+      tap(res => this.setSession(res))
     );
   }
 
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('role');
+    localStorage.removeItem('username');
     this.userSubject.next(null);
+    this.router.navigate(['/login']);
   }
 
-  private setToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
-    this.userSubject.next(decodePayload(token));
+  private setSession(res: AuthResponse): void {
+    localStorage.setItem(TOKEN_KEY, res.token);
+    localStorage.setItem('role', res.role);
+    localStorage.setItem('username', res.username);
+    this.userSubject.next({ username: res.username, role: res.role });
   }
 }

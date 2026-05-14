@@ -1,136 +1,81 @@
 <div class="container">
   <a routerLink="/students" class="back-link">← Back to Students</a>
 
-  <div *ngIf="loading" class="loading-spinner">Loading student…</div>
+  <div *ngIf="loading" class="loading-spinner">Loading profile…</div>
   <div *ngIf="error" class="alert-error">{{ error }}</div>
 
   <ng-container *ngIf="student && !loading">
 
-    <!-- Student Info -->
     <div class="card">
-      <div class="section-header">
-        <div>
-          <h2>{{ student.name }}{{ student.surname ? ' ' + student.surname : '' }}</h2>
-          <p class="text-muted" style="margin-top: 0.25rem;">{{ student.email }}</p>
-          <div class="meta-row" style="margin-top: 0.5rem;">
-            <span class="timestamp">Created: {{ student.createdAt | date:'medium' }}</span>
-            <span class="timestamp">Updated: {{ student.updatedAt | date:'medium' }}</span>
+      <div class="profile-display">
+        <div class="avatar-placeholder">{{ student.fullName?.charAt(0)?.toUpperCase() }}</div>
+        <div style="flex: 1;">
+          <h2 style="font-size: 1.25rem;">{{ student.fullName }}</h2>
+          <div style="margin-top: 0.25rem;">
+            <span class="badge"
+              [class.badge-purple]="student.role === 'ADMIN'"
+              [class.badge-green]="student.role === 'STUDENT'">
+              {{ student.role }}
+            </span>
           </div>
-        </div>
-        <div class="actions" *ngIf="auth.isAdmin()">
-          <a routerLink="/students" [queryParams]="{edit: student.id}" class="btn btn-secondary btn-sm">Edit</a>
+          <div class="meta-row" style="margin-top: 0.75rem;">
+            <span class="text-muted">&#64;{{ student.username }}</span>
+            <span class="text-muted">{{ student.email }}</span>
+            <span class="timestamp">Joined {{ student.createdAt | date:'mediumDate' }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Profile — One-to-One relationship -->
-    <div class="card">
-      <div class="section-header">
-        <h3>Profile <span class="rel-badge">OneToOne</span></h3>
-        <div class="actions" *ngIf="auth.isAdmin()">
-          <button class="btn btn-secondary btn-sm" (click)="openProfileForm()">
-            {{ student.profile ? 'Edit Profile' : 'Add Profile' }}
-          </button>
-          <button *ngIf="student.profile && !showProfileForm" class="btn btn-danger btn-sm" (click)="deleteProfile()">
-            Delete
-          </button>
+    <div *ngIf="!auth.isAdmin()" class="card form-card">
+      <h3>Enroll in a Course</h3>
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Available courses</label>
+          <select [(ngModel)]="selectedCourseId">
+            <option [ngValue]="null">Select a course…</option>
+            <option *ngFor="let c of courses" [ngValue]="c.id">
+              {{ c.title }} — {{ c.instructor }}
+            </option>
+          </select>
         </div>
       </div>
-
-      <div *ngIf="!student.profile && !showProfileForm" class="empty-state">
-        No profile yet.<span *ngIf="auth.isAdmin()"> Click "Add Profile" to create one.</span>
-      </div>
-
-      <div *ngIf="student.profile && !showProfileForm" class="profile-display">
-        <img *ngIf="student.profile.avatarUrl" [src]="student.profile.avatarUrl" class="avatar" alt="avatar"
-             (error)="$any($event.target).style.display='none'" />
-        <div *ngIf="!student.profile.avatarUrl" class="avatar-placeholder">
-          {{ student.name[0].toUpperCase() }}
-        </div>
-        <div>
-          <p><strong>Bio:</strong> {{ student.profile.bio || '—' }}</p>
-          <p *ngIf="student.profile.avatarUrl" style="word-break: break-all; margin-top: 0.25rem;">
-            <strong>Avatar URL:</strong> {{ student.profile.avatarUrl }}
-          </p>
-          <div class="meta-row" style="margin-top: 0.5rem;" *ngIf="student.profile.createdAt">
-            <span class="timestamp">Profile created: {{ student.profile.createdAt | date:'medium' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <form *ngIf="showProfileForm" (ngSubmit)="saveProfile()" #pf="ngForm">
-        <div class="form-group">
-          <label>Bio</label>
-          <textarea name="bio" [(ngModel)]="profileForm.bio" rows="3"
-                    placeholder="Tell us about the student…"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Avatar URL</label>
-          <input name="avatarUrl" [(ngModel)]="profileForm.avatarUrl"
-                 placeholder="https://example.com/avatar.jpg" />
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" [disabled]="profileSubmitting">
-            <span *ngIf="profileSubmitting" class="spinner"></span>
-            {{ profileSubmitting ? 'Saving…' : 'Save Profile' }}
-          </button>
-          <button type="button" class="btn btn-secondary" (click)="showProfileForm = false">Cancel</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Enrolled Courses — Many-to-Many relationship -->
-    <div class="card">
-      <div class="section-header">
-        <h3>Enrolled Courses <span class="rel-badge">ManyToMany</span></h3>
-        <span class="badge badge-blue">{{ student.courses?.length ?? 0 }} enrolled</span>
-      </div>
-
-      <div *ngIf="(student.courses?.length ?? 0) === 0" class="empty-state">
-        Not enrolled in any courses.
-      </div>
-
-      <table *ngIf="(student.courses?.length ?? 0) > 0">
-        <thead>
-          <tr>
-            <th>Course</th>
-            <th>Code</th>
-            <th>Assignments</th>
-            <th *ngIf="auth.isAdmin()" class="col-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let c of student.courses">
-            <td><a [routerLink]="['/courses', c.id]" class="table-link">{{ c.title }}</a></td>
-            <td><span class="badge badge-purple">{{ c.code }}</span></td>
-            <td>
-              <span class="badge badge-blue">{{ c.assignments?.length ?? 0 }} assignments</span>
-            </td>
-            <td *ngIf="auth.isAdmin()" class="col-actions">
-              <button class="btn btn-danger btn-sm" (click)="unenroll(c.id, c.title)">Unenroll</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div *ngIf="auth.isAdmin() && availableCourses.length > 0"
-           style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Enroll in a Course</label>
-            <select [(ngModel)]="selectedCourseId" name="enroll-course">
-              <option [ngValue]="null">Select course…</option>
-              <option *ngFor="let c of availableCourses" [value]="c.id">
-                {{ c.title }} ({{ c.code }})
-              </option>
-            </select>
-          </div>
-        </div>
-        <button class="btn btn-primary" [disabled]="!selectedCourseId || enrolling" (click)="enroll()">
+      <div class="form-actions">
+        <button class="btn btn-primary" (click)="enroll()" [disabled]="!selectedCourseId || enrolling">
           <span *ngIf="enrolling" class="spinner"></span>
           {{ enrolling ? 'Enrolling…' : 'Enroll' }}
         </button>
       </div>
+    </div>
+
+    <div class="card" [style.padding]="enrollments.length > 0 ? '0' : '1.5rem'">
+      <div *ngIf="enrollments.length === 0" class="empty-state">No enrollments yet.</div>
+
+      <table *ngIf="enrollments.length > 0">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Instructor</th>
+            <th>Status</th>
+            <th>Enrolled</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of enrollments">
+            <td>{{ e.courseTitle }}</td>
+            <td>{{ e.instructor }}</td>
+            <td>
+              <span class="badge"
+                [class.badge-green]="e.status === 'ACTIVE'"
+                [class.badge-blue]="e.status === 'COMPLETED'"
+                [class.badge-gray]="e.status === 'DROPPED'">
+                {{ e.status }}
+              </span>
+            </td>
+            <td class="timestamp">{{ e.enrolledAt | date:'mediumDate' }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
   </ng-container>

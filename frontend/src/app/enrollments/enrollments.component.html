@@ -1,122 +1,60 @@
 <div class="container">
   <div class="page-header">
-    <h2>Enrollments</h2>
-    <span class="badge badge-blue" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
-      {{ allEnrollments.length }} total
-    </span>
+    <h2>My Enrollments</h2>
   </div>
 
   <div *ngIf="error" class="alert-error">{{ error }}</div>
-  <div *ngIf="successMessage" class="alert-success">{{ successMessage }}</div>
 
-  <!-- Enroll Form (admin only) -->
-  <div *ngIf="auth.isAdmin()" class="card form-card">
-    <h3>Enroll a Student in Multiple Courses</h3>
-    <form (ngSubmit)="enroll()" #ef="ngForm">
-      <div class="form-group">
-        <label>Student</label>
-        <select required name="student"
-                [(ngModel)]="selectedStudentId"
-                (ngModelChange)="onStudentChange()">
-          <option [ngValue]="null">Select student…</option>
-          <option *ngFor="let s of students" [ngValue]="s.id">{{ s.name }}</option>
+  <div *ngIf="!auth.isAdmin()" class="card form-card">
+    <h3>Enroll in a Course</h3>
+    <div class="form-row">
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Available courses</label>
+        <select [(ngModel)]="selectedCourseId">
+          <option [ngValue]="null">Select a course…</option>
+          <option *ngFor="let c of courses" [ngValue]="c.id">
+            {{ c.title }} — {{ c.instructor }}
+          </option>
         </select>
       </div>
-
-      <div class="form-group">
-        <label>Courses (select one or more)</label>
-        <div *ngIf="!selectedStudentId" class="empty-state" style="padding: 1rem;">
-          Pick a student first to see available courses.
-        </div>
-        <div *ngIf="selectedStudentId && availableCourses.length === 0" class="empty-state" style="padding: 1rem;">
-          This student is already enrolled in every course.
-        </div>
-        <div *ngIf="selectedStudentId && availableCourses.length > 0" class="checkbox-grid">
-          <label *ngFor="let c of availableCourses" class="checkbox-item">
-            <input type="checkbox"
-                   [checked]="isCourseSelected(c.id)"
-                   (change)="toggleCourse(c.id)" />
-            <span>{{ c.title }} <span class="badge badge-purple">{{ c.code }}</span></span>
-          </label>
-        </div>
-        <div *ngIf="selectedCourseIds.length > 0" class="selection-count">
-          {{ selectedCourseIds.length }} course{{ selectedCourseIds.length !== 1 ? 's' : '' }} selected
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary"
-                [disabled]="submitting || !selectedStudentId || selectedCourseIds.length === 0">
-          <span *ngIf="submitting" class="spinner"></span>
-          {{ submitting
-              ? 'Enrolling…'
-              : (selectedCourseIds.length > 1
-                  ? 'Enroll in ' + selectedCourseIds.length + ' Courses'
-                  : 'Enroll Student') }}
-        </button>
-      </div>
-    </form>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" (click)="enroll()" [disabled]="!selectedCourseId || enrolling">
+        <span *ngIf="enrolling" class="spinner"></span>
+        {{ enrolling ? 'Enrolling…' : 'Enroll' }}
+      </button>
+    </div>
   </div>
 
   <div *ngIf="loading" class="loading-spinner">Loading enrollments…</div>
 
-  <!-- All Enrollments Table -->
-  <div *ngIf="!loading" class="card">
-    <h3 style="margin-bottom: 1rem;">All Enrollments</h3>
-    <div *ngIf="allEnrollments.length === 0" class="empty-state">
-      No enrollments yet.<span *ngIf="auth.isAdmin()"> Use the form above to enroll a student.</span>
-    </div>
-    <table *ngIf="allEnrollments.length > 0">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Course</th>
-          <th>Code</th>
-          <th *ngIf="auth.isAdmin()" class="col-actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let e of allEnrollments">
-          <td><a [routerLink]="['/students', e.student.id]" class="table-link">{{ e.student.name }}</a></td>
-          <td><a [routerLink]="['/courses', e.course.id]" class="table-link">{{ e.course.title }}</a></td>
-          <td><span class="badge badge-purple">{{ e.course.code }}</span></td>
-          <td *ngIf="auth.isAdmin()" class="col-actions">
-            <button class="btn btn-danger btn-sm"
-                    (click)="unenroll(e.student.id, e.course.id, e.student.name, e.course.title)">
-              Remove
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div *ngIf="!loading && enrollments.length === 0" class="card">
+    <div class="empty-state">No enrollments yet.</div>
   </div>
 
-  <!-- By Student Summary -->
-  <div *ngIf="!loading" class="card">
-    <h3 style="margin-bottom: 1rem;">By Student</h3>
+  <div *ngIf="!loading && enrollments.length > 0" class="card" style="padding: 0;">
     <table>
       <thead>
         <tr>
-          <th>Student</th>
-          <th>Enrolled Courses</th>
-          <th>Count</th>
+          <th>Course</th>
+          <th>Instructor</th>
+          <th>Status</th>
+          <th>Enrolled</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let s of students">
-          <td><a [routerLink]="['/students', s.id]" class="table-link">{{ s.name }}</a></td>
+        <tr *ngFor="let e of enrollments">
+          <td>{{ e.courseTitle }}</td>
+          <td>{{ e.instructor }}</td>
           <td>
-            <span *ngIf="(s.courses?.length ?? 0) === 0" class="text-muted">None</span>
-            <div *ngIf="(s.courses?.length ?? 0) > 0" class="tag-list">
-              <a *ngFor="let c of s.courses" [routerLink]="['/courses', c.id]"
-                 class="badge badge-purple" style="text-decoration: none; cursor: pointer;">
-                {{ c.code }}
-              </a>
-            </div>
+            <span class="badge"
+              [class.badge-green]="e.status === 'ACTIVE'"
+              [class.badge-blue]="e.status === 'COMPLETED'"
+              [class.badge-gray]="e.status === 'DROPPED'">
+              {{ e.status }}
+            </span>
           </td>
-          <td>
-            <span class="badge badge-blue">{{ s.courses?.length ?? 0 }}</span>
-          </td>
+          <td class="timestamp">{{ e.enrolledAt | date:'mediumDate' }}</td>
         </tr>
       </tbody>
     </table>
