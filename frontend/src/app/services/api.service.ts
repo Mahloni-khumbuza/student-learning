@@ -13,22 +13,22 @@ export class ApiService {
   getStudents(): Observable<Student[]> {
     return this.http.get<Student[]>(`${BASE}/students`);
   }
-  getStudent(id: number): Observable<Student> {
+  getStudent(id: string): Observable<Student> {
     return this.http.get<Student>(`${BASE}/students/${id}`);
   }
   createStudent(data: { name: string; surname?: string; email: string }): Observable<Student> {
     return this.http.post<Student>(`${BASE}/students`, data);
   }
-  updateStudent(id: number, data: Partial<{ name: string; surname: string; email: string }>): Observable<Student> {
+  updateStudent(id: string, data: Partial<{ name: string; surname: string; email: string }>): Observable<Student> {
     return this.http.patch<Student>(`${BASE}/students/${id}`, data);
   }
-  deleteStudent(id: number): Observable<void> {
-    return this.http.delete<void>(`${BASE}/students/${id}`);
+  deleteStudent(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${BASE}/students/${id}`);
   }
-  enrollStudent(studentId: number, courseId: number): Observable<Student> {
+  enrollStudent(studentId: string, courseId: number): Observable<Student> {
     return this.http.post<Student>(`${BASE}/students/${studentId}/enroll/${courseId}`, {});
   }
-  unenrollStudent(studentId: number, courseId: number): Observable<Student> {
+  unenrollStudent(studentId: string, courseId: number): Observable<Student> {
     return this.http.delete<Student>(`${BASE}/students/${studentId}/unenroll/${courseId}`);
   }
   getAllEnrollments(): Observable<Student[]> {
@@ -36,7 +36,7 @@ export class ApiService {
   }
 
   // Profiles
-  createProfile(data: { studentId: number; bio?: string; avatarUrl?: string }): Observable<Profile> {
+  createProfile(data: { studentId: string; bio?: string; avatarUrl?: string }): Observable<Profile> {
     return this.http.post<Profile>(`${BASE}/profiles`, data);
   }
   updateProfile(id: number, data: Partial<{ bio: string; avatarUrl: string }>): Observable<Profile> {

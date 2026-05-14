@@ -15,7 +15,7 @@ export class EnrollmentsComponent implements OnInit {
   loading = true;
   error = '';
   successMessage = '';
-  selectedStudentId: number | null = null;
+  selectedStudentId: string | null = null;
   selectedCourseIds: number[] = [];
   submitting = false;
 
@@ -44,7 +44,7 @@ export class EnrollmentsComponent implements OnInit {
 
   get availableCourses(): Course[] {
     if (!this.selectedStudentId) return this.courses;
-    const student = this.students.find(s => s.id === Number(this.selectedStudentId));
+    const student = this.students.find(s => s.id === this.selectedStudentId);
     if (!student) return this.courses;
     const enrolledIds = (student.courses || []).map(c => c.id);
     return this.courses.filter(c => !enrolledIds.includes(c.id));
@@ -72,7 +72,7 @@ export class EnrollmentsComponent implements OnInit {
     this.error = '';
     this.successMessage = '';
 
-    const studentId = Number(this.selectedStudentId);
+    const studentId = this.selectedStudentId;
     const requests = this.selectedCourseIds.map(courseId =>
       this.api.enrollStudent(studentId, courseId).pipe(
         map(() => ({ courseId, success: true, message: '' })),
@@ -104,7 +104,7 @@ export class EnrollmentsComponent implements OnInit {
     });
   }
 
-  unenroll(studentId: number, courseId: number, studentName: string, courseTitle: string): void {
+  unenroll(studentId: string, courseId: number, studentName: string, courseTitle: string): void {
     if (!confirm(`Remove "${studentName}" from "${courseTitle}"?`)) return;
     this.api.unenrollStudent(studentId, courseId).subscribe({
       next: () => this.load(),

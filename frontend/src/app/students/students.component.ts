@@ -72,7 +72,7 @@ export class StudentsComponent implements OnInit {
       next: () => this.load(),
       error: (err) => {
         const msg = err.error?.message || 'Failed to delete student.';
-        this.error = msg;
+        this.error = Array.isArray(msg) ? msg.join(', ') : msg;
       },
     });
   }

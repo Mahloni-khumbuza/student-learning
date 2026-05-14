@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Assignment } from './assignment.entity';
 import { Course } from '../courses/course.entity';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
@@ -15,43 +21,89 @@ export class AssignmentsService {
     private readonly courseRepo: Repository<Course>,
   ) {}
 
-  findAll(): Promise<Assignment[]> {
-    return this.assignmentRepo.find({
-      relations: ['course'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(): Promise<Assignment[]> {
+    try {
+      return await this.assignmentRepo.find({
+        relations: ['course'],
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw this.handleDatabaseError(error, 'Unable to load assignments');
+    }
   }
 
   async findOne(id: number): Promise<Assignment> {
-    const assignment = await this.assignmentRepo.findOne({
-      where: { id },
-      relations: ['course'],
-    });
-    if (!assignment) throw new NotFoundException(`Assignment #${id} not found`);
-    return assignment;
+    try {
+      return await this.assignmentRepo.findOneOrFail({
+        where: { id },
+        relations: ['course'],
+      });
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Assignment #${id} not found`);
+      }
+      throw this.handleDatabaseError(error, 'Unable to load assignment');
+    }
   }
 
   async create(dto: CreateAssignmentDto): Promise<Assignment> {
-    const course = await this.courseRepo.findOne({ where: { id: dto.courseId } });
-    if (!course) throw new NotFoundException(`Course #${dto.courseId} not found`);
-
-    const assignment = this.assignmentRepo.create({
-      title: dto.title,
-      dueDate: dto.dueDate,
-      course,
-    });
-    return this.assignmentRepo.save(assignment);
+    try {
+      const course = await this.courseRepo.findOneOrFail({ where: { id: dto.courseId } });
+      const assignment = this.assignmentRepo.create({
+        title: dto.title,
+        dueDate: dto.dueDate,
+        course,
+      });
+      return await this.assignmentRepo.save(assignment);
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Course #${dto.courseId} not found`);
+      }
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to create assignment');
+    }
   }
 
   async update(id: number, dto: UpdateAssignmentDto): Promise<Assignment> {
-    const assignment = await this.findOne(id);
-    Object.assign(assignment, dto);
-    await this.assignmentRepo.save(assignment);
-    return this.findOne(id);
+    try {
+      const assignment = await this.findOne(id);
+      Object.assign(assignment, dto);
+      await this.assignmentRepo.save(assignment);
+      return await this.findOne(id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to update assignment');
+    }
   }
 
-  async remove(id: number): Promise<void> {
-    const assignment = await this.findOne(id);
-    await this.assignmentRepo.remove(assignment);
+  async remove(id: number): Promise<{ message: string }> {
+    try {
+      const assignment = await this.findOne(id);
+      await this.assignmentRepo.remove(assignment);
+      return { message: 'Assignment deleted successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to delete assignment');
+    }
+  }
+
+  private handleDatabaseError(error: unknown, message: string): HttpException {
+    if (this.isDuplicate(error)) {
+      return new ConflictException('A record with the same unique value already exists');
+    }
+    return new InternalServerErrorException(message);
+  }
+
+  private isDuplicate(error: unknown): boolean {
+    if (error instanceof QueryFailedError) {
+      const driverErr = error as QueryFailedError & { code?: string; driverError?: { code?: string } };
+      const code = driverErr.code || driverErr.driverError?.code;
+      return code === 'ER_DUP_ENTRY' || code === '23505';
+    }
+    return false;
+  }
+
+  private isEntityNotFound(error: unknown): boolean {
+    return (error as { name?: string })?.name === 'EntityNotFoundError';
   }
 }

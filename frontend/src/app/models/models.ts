@@ -7,7 +7,7 @@ export interface Profile {
 }
 
 export interface Student {
-  id: number;
+  id: string;
   name: string;
   surname?: string | null;
   email: string;

@@ -9,7 +9,7 @@ export const AppDataSource = new DataSource({
   port: parseInt(process.env.DB_PORT || '3306', 10),
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'student_learning',
+  database: process.env.DB_NAME || 'mary_db',
   entities: ['src/**/*.entity.ts'],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,

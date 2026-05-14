@@ -7,8 +7,6 @@ import {
   Param,
   Body,
   ParseIntPipe,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -61,7 +59,6 @@ export class CoursesController {
 
   @Roles(Role.ADMIN)
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Delete a course and all its assignments' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.coursesService.remove(id);

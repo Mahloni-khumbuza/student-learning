@@ -28,12 +28,12 @@ export class StudentDetailComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = this.route.snapshot.paramMap.get('id') ?? '';
     this.loadStudent(id);
     this.api.getCourses().subscribe({ next: (c) => (this.allCourses = c) });
   }
 
-  loadStudent(id: number): void {
+  loadStudent(id: string): void {
     this.loading = true;
     this.api.getStudent(id).subscribe({
       next: (s) => { this.student = s; this.loading = false; },

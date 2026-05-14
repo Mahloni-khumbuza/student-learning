@@ -14,8 +14,8 @@ import { Course } from '../courses/course.entity';
 
 @Entity('students')
 export class Student {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column()
   name: string;

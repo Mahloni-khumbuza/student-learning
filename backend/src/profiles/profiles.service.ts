@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Profile } from './profile.entity';
 import { Student } from '../students/student.entity';
 import { CreateProfileDto } from './dto/create-profile.dto';
@@ -15,44 +21,94 @@ export class ProfilesService {
     private readonly studentRepo: Repository<Student>,
   ) {}
 
-  findAll(): Promise<Profile[]> {
-    return this.profileRepo.find({ relations: ['student'] });
+  async findAll(): Promise<Profile[]> {
+    try {
+      return await this.profileRepo.find({ relations: ['student'] });
+    } catch (error) {
+      throw this.handleDatabaseError(error, 'Unable to load profiles');
+    }
   }
 
   async findOne(id: number): Promise<Profile> {
-    const profile = await this.profileRepo.findOne({
-      where: { id },
-      relations: ['student'],
-    });
-    if (!profile) throw new NotFoundException(`Profile #${id} not found`);
-    return profile;
+    try {
+      return await this.profileRepo.findOneOrFail({
+        where: { id },
+        relations: ['student'],
+      });
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Profile #${id} not found`);
+      }
+      throw this.handleDatabaseError(error, 'Unable to load profile');
+    }
   }
 
   async create(dto: CreateProfileDto): Promise<Profile> {
-    const student = await this.studentRepo.findOne({
-      where: { id: dto.studentId },
-      relations: ['profile'],
-    });
-    if (!student) throw new NotFoundException(`Student #${dto.studentId} not found`);
-    if (student.profile) throw new ConflictException('Student already has a profile');
+    try {
+      const student = await this.studentRepo.findOneOrFail({
+        where: { id: dto.studentId },
+        relations: ['profile'],
+      });
 
-    const profile = this.profileRepo.create({
-      bio: dto.bio,
-      avatarUrl: dto.avatarUrl,
-      student,
-    });
-    return this.profileRepo.save(profile);
+      if (student.profile) {
+        throw new ConflictException('Student already has a profile');
+      }
+
+      const profile = this.profileRepo.create({
+        bio: dto.bio,
+        avatarUrl: dto.avatarUrl,
+        student,
+      });
+      return await this.profileRepo.save(profile);
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Student #${dto.studentId} not found`);
+      }
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to create profile');
+    }
   }
 
   async update(id: number, dto: UpdateProfileDto): Promise<Profile> {
-    const profile = await this.findOne(id);
-    Object.assign(profile, dto);
-    await this.profileRepo.save(profile);
-    return this.findOne(id);
+    try {
+      const profile = await this.findOne(id);
+      Object.assign(profile, dto);
+      await this.profileRepo.save(profile);
+      return await this.findOne(id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to update profile');
+    }
   }
 
-  async remove(id: number): Promise<void> {
-    const profile = await this.findOne(id);
-    await this.profileRepo.remove(profile);
+  async remove(id: number): Promise<{ message: string }> {
+    try {
+      const profile = await this.findOne(id);
+      await this.profileRepo.remove(profile);
+      return { message: 'Profile deleted successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to delete profile');
+    }
+  }
+
+  private handleDatabaseError(error: unknown, message: string): HttpException {
+    if (this.isDuplicate(error)) {
+      return new ConflictException('Profile already exists for this student');
+    }
+    return new InternalServerErrorException(message);
+  }
+
+  private isDuplicate(error: unknown): boolean {
+    if (error instanceof QueryFailedError) {
+      const driverErr = error as QueryFailedError & { code?: string; driverError?: { code?: string } };
+      const code = driverErr.code || driverErr.driverError?.code;
+      return code === 'ER_DUP_ENTRY' || code === '23505';
+    }
+    return false;
+  }
+
+  private isEntityNotFound(error: unknown): boolean {
+    return (error as { name?: string })?.name === 'EntityNotFoundError';
   }
 }

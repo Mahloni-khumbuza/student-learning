@@ -7,8 +7,6 @@ import {
   Param,
   Body,
   ParseIntPipe,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -61,7 +59,6 @@ export class ProfilesController {
 
   @Roles(Role.ADMIN)
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Delete a profile' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.profilesService.remove(id);

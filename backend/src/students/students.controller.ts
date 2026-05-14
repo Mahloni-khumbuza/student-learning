@@ -7,8 +7,7 @@ import {
   Param,
   Body,
   ParseIntPipe,
-  HttpCode,
-  HttpStatus,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -48,7 +47,7 @@ export class StudentsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a single student with profile and courses' })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.studentsService.findOne(id);
   }
 
@@ -63,15 +62,14 @@ export class StudentsController {
   @Roles(Role.ADMIN)
   @Patch(':id')
   @ApiOperation({ summary: '[Admin] Update student details' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStudentDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateStudentDto) {
     return this.studentsService.update(id, dto);
   }
 
   @Roles(Role.ADMIN)
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Soft-delete a student (recoverable)' })
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.studentsService.remove(id);
   }
 
@@ -80,7 +78,7 @@ export class StudentsController {
   @ApiOperation({ summary: '[Admin] Enroll a student in a course' })
   @ApiResponse({ status: 409, description: 'Student already enrolled in this course' })
   enroll(
-    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('studentId', ParseUUIDPipe) studentId: string,
     @Param('courseId', ParseIntPipe) courseId: number,
   ) {
     return this.studentsService.enroll(studentId, courseId);
@@ -90,7 +88,7 @@ export class StudentsController {
   @Delete(':studentId/unenroll/:courseId')
   @ApiOperation({ summary: '[Admin] Remove a student from a course' })
   unenroll(
-    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('studentId', ParseUUIDPipe) studentId: string,
     @Param('courseId', ParseIntPipe) courseId: number,
   ) {
     return this.studentsService.unenroll(studentId, courseId);

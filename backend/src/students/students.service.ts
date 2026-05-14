@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Student } from './student.entity';
 import { Course } from '../courses/course.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -15,86 +21,162 @@ export class StudentsService {
     private readonly courseRepo: Repository<Course>,
   ) {}
 
-  findAll(): Promise<Student[]> {
-    return this.studentRepo.find({
-      relations: ['profile', 'courses'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(): Promise<Student[]> {
+    try {
+      return await this.studentRepo.find({
+        relations: ['profile', 'courses'],
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw this.handleDatabaseError(error, 'Unable to load students');
+    }
   }
 
-  async findOne(id: number): Promise<Student> {
-    const student = await this.studentRepo.findOne({
-      where: { id },
-      relations: ['profile', 'courses', 'courses.assignments'],
-    });
-    if (!student) throw new NotFoundException(`Student #${id} not found`);
-    return student;
+  async findOne(id: string): Promise<Student> {
+    try {
+      return await this.studentRepo.findOneOrFail({
+        where: { id },
+        relations: ['profile', 'courses', 'courses.assignments'],
+      });
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Student #${id} not found`);
+      }
+      throw this.handleDatabaseError(error, 'Unable to load student');
+    }
   }
 
   async create(dto: CreateStudentDto): Promise<Student> {
-    const exists = await this.studentRepo.findOne({ where: { email: dto.email } });
-    if (exists) throw new ConflictException('Email already in use');
-    const student = this.studentRepo.create(dto);
-    return this.studentRepo.save(student);
-  }
-
-  async update(id: number, dto: UpdateStudentDto): Promise<Student> {
-    const student = await this.findOne(id);
-    if (dto.email && dto.email !== student.email) {
-      const exists = await this.studentRepo.findOne({ where: { email: dto.email } });
-      if (exists) throw new ConflictException('Email already in use');
+    try {
+      const student = this.studentRepo.create(dto);
+      return await this.studentRepo.save(student);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to create student');
     }
-    Object.assign(student, dto);
-    await this.studentRepo.save(student);
-    return this.findOne(id);
   }
 
-  async remove(id: number): Promise<void> {
-    const student = await this.studentRepo.findOne({ where: { id } });
-    if (!student) throw new NotFoundException(`Student #${id} not found`);
-    await this.studentRepo.softDelete(id);
+  async update(id: string, dto: UpdateStudentDto): Promise<Student> {
+    try {
+      const student = await this.findOne(id);
+      Object.assign(student, dto);
+      await this.studentRepo.save(student);
+      return await this.findOne(id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to update student');
+    }
   }
 
-  async restore(id: number): Promise<void> {
-    await this.studentRepo.restore(id);
+  async remove(id: string): Promise<{ message: string }> {
+    try {
+      await this.findOne(id);
+      await this.studentRepo.softDelete(id);
+      return { message: 'Student deleted successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to delete student');
+    }
   }
 
-  async enroll(studentId: number, courseId: number): Promise<Student> {
-    const student = await this.studentRepo.findOne({
-      where: { id: studentId },
-      relations: ['courses'],
-    });
-    if (!student) throw new NotFoundException(`Student #${studentId} not found`);
+  async restore(id: string): Promise<{ message: string }> {
+    try {
+      await this.studentRepo.restore(id);
+      return { message: 'Student restored successfully' };
+    } catch (error) {
+      throw this.handleDatabaseError(error, 'Unable to restore student');
+    }
+  }
 
-    const course = await this.courseRepo.findOne({ where: { id: courseId } });
-    if (!course) throw new NotFoundException(`Course #${courseId} not found`);
-
-    const alreadyEnrolled = student.courses?.some((c) => c.id === courseId);
-    if (alreadyEnrolled) {
-      throw new ConflictException(`Student #${studentId} is already enrolled in Course #${courseId}`);
+  async enroll(studentId: string, courseId: number): Promise<Student> {
+    try {
+      await this.studentRepo.findOneOrFail({ where: { id: studentId } });
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Student #${studentId} not found`);
+      }
+      throw this.handleDatabaseError(error, 'Unable to enroll student');
     }
 
-    student.courses = [...(student.courses || []), course];
-    await this.studentRepo.save(student);
+    try {
+      await this.courseRepo.findOneOrFail({ where: { id: courseId } });
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Course #${courseId} not found`);
+      }
+      throw this.handleDatabaseError(error, 'Unable to enroll student');
+    }
+
+    try {
+      await this.studentRepo
+        .createQueryBuilder()
+        .relation(Student, 'courses')
+        .of(studentId)
+        .add(courseId);
+    } catch (error) {
+      if (this.isDuplicate(error)) {
+        throw new ConflictException(
+          `Student #${studentId} is already enrolled in Course #${courseId}`,
+        );
+      }
+      throw this.handleDatabaseError(error, 'Unable to enroll student');
+    }
+
     return this.findOne(studentId);
   }
 
-  async unenroll(studentId: number, courseId: number): Promise<Student> {
-    const student = await this.studentRepo.findOne({
-      where: { id: studentId },
-      relations: ['courses'],
-    });
-    if (!student) throw new NotFoundException(`Student #${studentId} not found`);
+  async unenroll(studentId: string, courseId: number): Promise<Student> {
+    try {
+      await this.studentRepo.findOneOrFail({ where: { id: studentId } });
+    } catch (error) {
+      if (this.isEntityNotFound(error)) {
+        throw new NotFoundException(`Student #${studentId} not found`);
+      }
+      throw this.handleDatabaseError(error, 'Unable to unenroll student');
+    }
 
-    student.courses = (student.courses || []).filter((c) => c.id !== courseId);
-    await this.studentRepo.save(student);
-    return this.findOne(studentId);
+    try {
+      await this.studentRepo
+        .createQueryBuilder()
+        .relation(Student, 'courses')
+        .of(studentId)
+        .remove(courseId);
+      return await this.findOne(studentId);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw this.handleDatabaseError(error, 'Unable to unenroll student');
+    }
   }
 
-  findAllEnrollments(): Promise<Student[]> {
-    return this.studentRepo.find({
-      relations: ['courses'],
-      order: { name: 'ASC' },
-    });
+  async findAllEnrollments(): Promise<Student[]> {
+    try {
+      return await this.studentRepo.find({
+        relations: ['courses'],
+        order: { name: 'ASC' },
+      });
+    } catch (error) {
+      throw this.handleDatabaseError(error, 'Unable to load enrollments');
+    }
+  }
+
+  private handleDatabaseError(error: unknown, message: string): HttpException {
+    if (this.isDuplicate(error)) {
+      return new ConflictException('A record with the same unique value already exists');
+    }
+    console.error('[StudentsService]', message, error);
+    return new InternalServerErrorException(message);
+  }
+
+  private isDuplicate(error: unknown): boolean {
+    if (error instanceof QueryFailedError) {
+      const driverErr = error as QueryFailedError & { code?: string; driverError?: { code?: string } };
+      const code = driverErr.code || driverErr.driverError?.code;
+      return code === 'ER_DUP_ENTRY' || code === '23505';
+    }
+    return false;
+  }
+
+  private isEntityNotFound(error: unknown): boolean {
+    return (error as { name?: string })?.name === 'EntityNotFoundError';
   }
 }
